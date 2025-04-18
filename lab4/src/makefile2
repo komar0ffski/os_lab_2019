@@ -1,0 +1,15 @@
+CC = gcc
+CFLAGS = -I. -pthread
+TARGETS = parallel_sum
+OBJS = parallel_sum.o
+
+all: $(TARGETS)
+
+parallel_sum: $(OBJS)
+	$(CC) -o $@ $(OBJS) $(CFLAGS)
+
+parallel_sum.o: parallel_sum.c
+	$(CC) -o parallel_sum.o -c parallel_sum.c $(CFLAGS)
+
+clean:
+	rm $(OBJS) $(TARGETS)
