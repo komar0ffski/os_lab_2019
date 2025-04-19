@@ -8,48 +8,61 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define SERV_PORT 20001
-#define BUFSIZE 1024
 #define SADDR struct sockaddr
 #define SLEN sizeof(struct sockaddr_in)
 
-int main() {
-  int sockfd, n;
-  char mesg[BUFSIZE], ipadr[16];
-  struct sockaddr_in servaddr;
-  struct sockaddr_in cliaddr;
-
-  if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    perror("socket problem");
+int main(int argc, char *argv[]) {
+  // проверка аргументов командной строки
+  if (argc != 3) {
+    printf("использование: %s <порт> <размер_буфера>\n", argv[0]);
     exit(1);
   }
 
+  int sockfd, n;
+  const int port = atoi(argv[1]);          // порт из аргументов
+  const int bufsize = atoi(argv[2]);       // размер буфера из аргументов
+  char mesg[bufsize], ipadr[16];           // буферы динамического размера
+  struct sockaddr_in servaddr, cliaddr;
+
+  // создание UDP сокета
+  if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    perror("ошибка создания сокета");
+    exit(1);
+  }
+
+  // настройка адреса сервера
   memset(&servaddr, 0, SLEN);
   servaddr.sin_family = AF_INET;
   servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  servaddr.sin_port = htons(SERV_PORT);
+  servaddr.sin_port = htons(port);         // порт из аргументов
 
+  // привязка сокета
   if (bind(sockfd, (SADDR *)&servaddr, SLEN) < 0) {
-    perror("bind problem");
+    perror("ошибка привязки");
     exit(1);
   }
-  printf("SERVER starts...\n");
 
+  printf("сервер запущен на порту %d\n", port);
+
+  // основной цикл сервера
   while (1) {
     unsigned int len = SLEN;
 
-    if ((n = recvfrom(sockfd, mesg, BUFSIZE, 0, (SADDR *)&cliaddr, &len)) < 0) {
-      perror("recvfrom");
+    // получение сообщения от клиента
+    if ((n = recvfrom(sockfd, mesg, bufsize, 0, (SADDR *)&cliaddr, &len)) < 0) {
+      perror("ошибка получения");
       exit(1);
     }
-    mesg[n] = 0;
+    mesg[n] = '\0';  // завершающий ноль для строки
 
-    printf("REQUEST %s      FROM %s : %d\n", mesg,
-           inet_ntop(AF_INET, (void *)&cliaddr.sin_addr.s_addr, ipadr, 16),
+    // вывод информации о запросе
+    printf("запрос: %s\tот %s:%d\n", mesg,
+           inet_ntop(AF_INET, &cliaddr.sin_addr.s_addr, ipadr, sizeof(ipadr)),
            ntohs(cliaddr.sin_port));
 
+    // отправка ответа клиенту
     if (sendto(sockfd, mesg, n, 0, (SADDR *)&cliaddr, len) < 0) {
-      perror("sendto");
+      perror("ошибка отправки");
       exit(1);
     }
   }
